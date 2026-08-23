@@ -1,0 +1,12 @@
+*.tmp
+*.log
+*.json
+*.txt
+cf-knife
+scan-*
+top-*
+initial-*
+verification-*
+final*
+warp-list.txt
+all-endpoints.txt
