@@ -1,56 +1,51 @@
 #!/data/data/com.termux/files/usr/bin/bash
 
-REPO="https://raw.githubusercontent.com/ezedin63/warp-endpoint-hunter/main"
+clear
 
-while true; do
+echo "=============================================="
+echo "       WARP ENDPOINT HUNTER"
+echo "=============================================="
+echo
+echo "[1] WARP Endpoint Hunter"
+echo "[2] WARP Auto Config"
+echo "[0] Exit"
+echo
 
-    clear
+printf "Select an option: "
+read -r OPTION
 
-    echo "=============================================="
-    echo "        WARP ENDPOINT HUNTER"
-    echo "=============================================="
-    echo
-    echo "[1] WARP Endpoint Hunter"
-    echo "[2] WARP Auto Config"
-    echo "[0] Exit"
-    echo
-    printf "Select an option: "
-    read -r CHOICE
+case "$OPTION" in
 
-    case "$CHOICE" in
+    1)
+        echo
+        echo "[+] Starting WARP Endpoint Hunter..."
+        echo
 
-        1)
-            echo
-            echo "[+] Starting WARP Endpoint Hunter..."
-            echo
-            curl -fsSL "$REPO/warp-endpoint-hunter.sh" | bash
-            echo
-            printf "Press Enter to return to menu..."
-            read -r
-            ;;
+        curl -fsSL \
+        https://raw.githubusercontent.com/ezedin63/warp-endpoint-hunter/main/warp-endpoint-hunter.sh \
+        | bash
+        ;;
 
-        2)
-            echo
-            echo "[+] Starting WARP Auto Config..."
-            echo
-            curl -fsSL "$REPO/warp-auto-config.sh" | bash
-            echo
-            printf "Press Enter to return to menu..."
-            read -r
-            ;;
+    2)
+        echo
+        echo "[+] Starting WARP Auto Config..."
+        echo
 
-        0)
-            echo
-            echo "[✓] Exit."
-            exit 0
-            ;;
+        curl -fsSL \
+        https://raw.githubusercontent.com/ezedin63/warp-endpoint-hunter/main/warp-auto-config.sh \
+        | bash
+        ;;
 
-        *)
-            echo
-            echo "[!] Invalid option."
-            sleep 1
-            ;;
+    0)
+        echo
+        echo "[+] Exit."
+        exit 0
+        ;;
 
-    esac
+    *)
+        echo
+        echo "[!] Invalid option."
+        exit 1
+        ;;
 
-done
+esac
