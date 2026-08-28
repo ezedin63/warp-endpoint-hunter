@@ -21,13 +21,12 @@ echo
 printf "Select an option: "
 read -r OPTION
 
-run_script() {
+download_file() {
     local FILE="$1"
     local OUT="$TMPDIR/$FILE"
 
     echo
     echo "[+] Downloading $FILE..."
-    echo
 
     if ! curl -4 -fsSL \
         --connect-timeout 10 \
@@ -37,7 +36,6 @@ run_script() {
         "$REPO/$FILE" \
         -o "$OUT"; then
 
-        echo
         echo "[!] Failed to download $FILE"
         return 1
     fi
@@ -48,8 +46,27 @@ run_script() {
     fi
 
     chmod +x "$OUT"
+    return 0
+}
 
-    bash "$OUT"
+run_script() {
+    local FILE="$1"
+
+    rm -f "$TMPDIR/$FILE" "$TMPDIR/warp-common.inc"
+
+    if ! download_file "$FILE"; then
+        return 1
+    fi
+
+    if ! download_file "warp-common.inc"; then
+        return 1
+    fi
+
+    echo
+    echo "[✓] Required files downloaded."
+    echo
+
+    bash "$TMPDIR/$FILE"
 }
 
 case "$OPTION" in
