@@ -24,7 +24,7 @@ find_warpscout() {
 }
 
 install_warpscout() {
-    local APP="$1"
+    local APP="${1:-$HOME/warp-endpoint-hunter}"
     local ARCHIVE="$APP/$WARP_ARCHIVE_NAME"
     local URL
 
@@ -83,7 +83,7 @@ install_warpscout() {
 }
 
 get_warpscout() {
-    local APP="$1"
+    local APP="${1:-$HOME/warp-endpoint-hunter}"
     local WARP
 
     if WARP="$(find_warpscout 2>/dev/null)"; then
@@ -147,15 +147,19 @@ scan_best_endpoint() {
         -tun-ping-count 10 \
         -jt 8 \
         -best >"$OUT" 2>&1; then
-
         return 1
     fi
 
-    # Only accept lines beginning with an IPv4:PORT endpoint.
+    # WARPSCOUT may print the best verified endpoint either:
+    #   1) as a standalone IP:PORT line
+    #   2) at the beginning of a result/table line.
+    #
+    # Extract only IPv4:PORT candidates and ignore unrelated text.
     ENDPOINT="$(
-        grep -E '^[[:space:]]*[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+[[:space:]]' \
-        "$OUT" \
-        | sed -E 's/^[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+).*/\1/' \
+        grep -Eo \
+        '(^|[[:space:]])[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+([[:space:]]|$)' \
+        "$OUT" 2>/dev/null \
+        | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//' \
         | head -n 1
     )"
 

@@ -2,11 +2,12 @@
 
 set -u
 
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 APP="$HOME/warp-endpoint-hunter"
 mkdir -p "$APP"
 cd "$APP" || exit 1
 
-COMMON_DIR="$HOME/warp-endpoint-hunter-public-test"
+COMMON_DIR="$SCRIPT_DIR"
 
 if [ ! -f "$COMMON_DIR/warp-common.inc" ]; then
     echo "[!] Common module not found."
