@@ -19,7 +19,7 @@ echo "[0] Exit"
 echo
 
 printf "Select an option: "
-read -r OPTION
+read -r OPTION </dev/tty
 
 download_file() {
     local FILE="$1"
