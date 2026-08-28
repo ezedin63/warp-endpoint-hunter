@@ -1,5 +1,4 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# WARP Auto Config Generator - با نام پیش‌فرض eze63
 
 set -u
 
@@ -7,135 +6,117 @@ APP="$HOME/warp-endpoint-hunter"
 mkdir -p "$APP"
 cd "$APP" || exit 1
 
+COMMON_DIR="$HOME/warp-endpoint-hunter-public-test"
+
+if [ ! -f "$COMMON_DIR/warp-common.inc" ]; then
+    echo "[!] Common module not found."
+    exit 1
+fi
+
+. "$COMMON_DIR/warp-common.inc"
+
 echo "══════════════════════════════════════════════════"
-echo "     WARP AUTO CONFIG GENERATOR (TERMUX)"
+echo "     WARP AUTO CONFIG GENERATOR (PUBLIC)"
 echo "══════════════════════════════════════════════════"
 echo
-echo "📋 This script will automatically:"
-echo "   1. Prepare the environment"
-echo "   2. Register with WARP"
-echo "   3. Find the best endpoint"
-echo "   4. Generate the final config"
+echo "This script will:"
+echo "  1. Check Android ARM64"
+echo "  2. Check GitHub API"
+echo "  3. Prepare dependencies"
+echo "  4. Prepare WARPSCOUT"
+echo "  5. Register a WARP account"
+echo "  6. Find a working AWG endpoint"
+echo "  7. Generate a configuration"
 echo
 echo "══════════════════════════════════════════════════"
 echo
 
-echo "🔍 Step 1/7: Checking device architecture..."
+echo "[1/7] Checking architecture..."
+
 ARCH="$(uname -m)"
 
 if [ "$ARCH" != "aarch64" ]; then
-    echo "❌ Error: This script is designed only for ARM64."
-    echo "   Current architecture: $ARCH"
+    echo "[!] Android ARM64 is required."
+    echo "[!] Current architecture: $ARCH"
     exit 1
 fi
 
-echo "✅ Architecture: $ARCH (supported)"
+echo "[✓] Architecture: $ARCH"
+
 echo
+echo "[2/7] Checking GitHub API..."
 
-echo "🌐 Step 2/7: Checking internet connection..."
-
-if curl -4 -fsS --connect-timeout 5 \
-    https://raw.githubusercontent.com >/dev/null 2>&1; then
-    echo "✅ GitHub is reachable."
-else
-    echo "❌ Error: Cannot reach GitHub."
-    echo "   Please check your internet connection or DNS settings."
+if ! check_github_api; then
+    echo "[!] GitHub API is unreachable."
     exit 1
 fi
 
+echo "[✓] GitHub API reachable."
+
 echo
+echo "[3/7] Checking dependencies..."
 
-echo "📦 Step 3/7: Checking and installing dependencies..."
-
-need_install=0
-
-for CMD in curl tar unzip; do
-    if ! command -v "$CMD" >/dev/null 2>&1; then
-        need_install=1
-        break
-    fi
-done
-
-if [ "$need_install" -eq 1 ]; then
-    echo "   ⏳ Installing required tools..."
-
-    if ! pkg install -y curl tar unzip >/dev/null 2>&1; then
-        echo "❌ Error: Failed to install required tools."
-        echo "   Please run: termux-change-repo"
-        exit 1
-    fi
-
-    echo "✅ Required tools installed."
-else
-    echo "✅ All dependencies are already installed."
+if ! check_common_dependencies; then
+    exit 1
 fi
 
+echo "[✓] Dependencies ready."
+
 echo
+echo "[4/7] Preparing WARPSCOUT..."
 
-echo "🔧 Step 4/7: Installing and setting up WARPSCOUT..."
+WARP="$(get_warpscout)"
 
-if command -v warpscout >/dev/null 2>&1; then
-
-    WARP="$(command -v warpscout)"
-    echo "✅ WARPSCOUT is already installed: $WARP"
-
-else
-
-    echo "   ⏳ Downloading and installing WARPSCOUT..."
-
-    INSTALLER="$APP/warpscout-install.sh"
-
-    if ! curl -4 -fsSL \
-        --connect-timeout 10 \
-        --max-time 60 \
-        https://raw.githubusercontent.com/vernette/warpscout/master/install.sh \
-        -o "$INSTALLER"; then
-
-        echo "❌ Error: Failed to download the installer."
-        exit 1
-    fi
-
-    chmod +x "$INSTALLER"
-
-    if ! sh "$INSTALLER"; then
-        echo "❌ Error: WARPSCOUT installation failed."
-        exit 1
-    fi
-
-    if command -v warpscout >/dev/null 2>&1; then
-        WARP="$(command -v warpscout)"
-    elif [ -x "$HOME/bin/warpscout" ]; then
-        WARP="$HOME/bin/warpscout"
-    elif [ -x "$APP/warpscout" ]; then
-        WARP="$APP/warpscout"
-    else
-        echo "❌ Error: WARPSCOUT not found after installation."
-        exit 1
-    fi
-
-    echo "✅ WARPSCOUT successfully installed: $WARP"
+if [ -z "$WARP" ] || [ ! -x "$WARP" ]; then
+    echo "[!] WARPSCOUT is unavailable."
+    exit 1
 fi
 
-echo
+echo "[✓] WARPSCOUT: $WARP"
+echo "[✓] Version: $("$WARP" version 2>/dev/null || echo unknown)"
 
-echo "🔑 Step 5/7: Registering with WARP..."
+echo
+echo "[5/7] Registering WARP..."
 
 if ! "$WARP" register; then
-    echo "❌ Error: WARP registration failed."
+    echo "[!] WARP registration failed."
     exit 1
 fi
 
-echo "✅ Registration successful."
-echo
+echo "[✓] Registration successful."
 
-echo "📂 Step 6/7: Locating account information..."
+echo
+echo "[6/7] Finding the best working endpoint..."
+echo "      Please wait..."
+
+SCAN_OUTPUT="$APP/public-auto-scan.txt"
+
+BEST_ENDPOINT="$(scan_best_endpoint "$WARP" "$SCAN_OUTPUT" || true)"
+
+if [ -z "$BEST_ENDPOINT" ]; then
+    echo
+    echo "[!] No verified endpoint was found."
+    echo
+    echo "Last scan output:"
+    cat "$SCAN_OUTPUT" 2>/dev/null || true
+    rm -f "$SCAN_OUTPUT"
+    exit 1
+fi
+
+echo
+echo "[✓] Verified endpoint:"
+echo "    $BEST_ENDPOINT"
+
+rm -f "$SCAN_OUTPUT"
+
+echo
+echo "[7/7] Locating WARP account..."
 
 ACC_FILE=""
 
 for f in \
     "$APP/warpscout-account.json" \
     "$HOME/warpscout-account.json" \
-    "$APP/warpscout-account.json" \
     "$HOME/.config/warpscout/warpscout-account.json"
 do
     if [ -f "$f" ]; then
@@ -145,31 +126,46 @@ do
 done
 
 if [ -z "$ACC_FILE" ]; then
-    echo "   ⏳ Searching for account file..."
     ACC_FILE="$(find "$HOME" \
         -name "warpscout-account.json" \
+        -type f \
         2>/dev/null | head -n 1)"
 fi
 
 if [ -z "$ACC_FILE" ] || [ ! -f "$ACC_FILE" ]; then
-    echo "❌ Error: Account file not found."
-    echo "   Please run: warpscout register"
+    echo "[!] WARP account file was not found."
     exit 1
 fi
 
-echo "✅ Account file found: $ACC_FILE"
-echo
+echo "[✓] Account file found."
 
-echo "   ⏳ Extracting PrivateKey and IPs..."
+PRIVKEY="$(
+    grep -o '"private_key"[[:space:]]*:[[:space:]]*"[^"]*' \
+    "$ACC_FILE" 2>/dev/null \
+    | head -n 1 \
+    | cut -d'"' -f4
+)"
 
-PRIVKEY="$(grep -o '"private_key": *"[^"]*' \
-    "$ACC_FILE" 2>/dev/null | cut -d'"' -f4)"
+IPV4="$(
+    grep -o '"v4"[[:space:]]*:[[:space:]]*"[^"]*' \
+    "$ACC_FILE" 2>/dev/null \
+    | head -n 1 \
+    | cut -d'"' -f4 \
+    | sed 's#/32##'
+)"
 
-IPV4="$(grep -o '"v4": *"[^"]*' \
-    "$ACC_FILE" 2>/dev/null | cut -d'"' -f4 | sed 's/\/32//')"
+IPV6="$(
+    grep -o '"v6"[[:space:]]*:[[:space:]]*"[^"]*' \
+    "$ACC_FILE" 2>/dev/null \
+    | head -n 1 \
+    | cut -d'"' -f4 \
+    | sed 's#/128##'
+)"
 
-IPV6="$(grep -o '"v6": *"[^"]*' \
-    "$ACC_FILE" 2>/dev/null | cut -d'"' -f4 | sed 's/\/128//')"
+if [ -z "$PRIVKEY" ]; then
+    echo "[!] Could not extract WARP PrivateKey."
+    exit 1
+fi
 
 if [ -z "$IPV4" ]; then
     IPV4="172.16.0.2"
@@ -179,71 +175,28 @@ if [ -z "$IPV6" ]; then
     IPV6="2606:4700:110:8a4d:5ed7:91f5:4e3b:eb2d"
 fi
 
-if [ -z "$PRIVKEY" ]; then
-    echo "❌ Error: Failed to extract PrivateKey."
-    exit 1
-fi
-
-echo "✅ PrivateKey and IPs extracted successfully."
 echo
-
-echo "🔍 Step 7/7: Scanning for the best endpoint..."
-echo "   ⏳ Please wait..."
-
-SCAN_OUTPUT="$APP/scan_result.tmp"
-
-if ! "$WARP" scan \
-    -p awg \
-    -P \
-    -tun-ping-count 10 \
-    -jt 8 \
-    -best > "$SCAN_OUTPUT" 2>&1; then
-
-    echo "❌ WARP scan failed."
-    echo
-    cat "$SCAN_OUTPUT"
-    rm -f "$SCAN_OUTPUT"
-    exit 1
-fi
-
-BEST_ENDPOINT="$(grep -Eo \
-    '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+' \
-    "$SCAN_OUTPUT" | head -n 1)"
-
-if [ -z "$BEST_ENDPOINT" ]; then
-    echo "❌ Could not find a working endpoint."
-    echo
-    cat "$SCAN_OUTPUT"
-    rm -f "$SCAN_OUTPUT"
-    exit 1
-fi
-
-echo "✅ Best endpoint found: $BEST_ENDPOINT"
-
-rm -f "$SCAN_OUTPUT"
-
-echo
-
-echo "📝 Enter config file name [default: eze63]:"
+printf "Config file name [default: eze63]: "
 read -r CONF_NAME
 
 if [ -z "$CONF_NAME" ]; then
     CONF_NAME="eze63"
 fi
 
-if [[ ! "$CONF_NAME" =~ \.conf$ ]]; then
-    CONF_NAME="${CONF_NAME}.conf"
-fi
+CONF_NAME="${CONF_NAME%.conf}.conf"
+
+# Basic filename safety.
+case "$CONF_NAME" in
+    ""|*"/"*|*".."*)
+        echo "[!] Invalid config filename."
+        exit 1
+        ;;
+esac
 
 CONF_PATH="$HOME/$CONF_NAME"
 
-echo "✅ Config will be saved as: $CONF_PATH"
-echo
-
-echo "📝 Generating configuration..."
-
 cat > "$CONF_PATH" <<CONFIG
-# Name = $(basename "$CONF_NAME" .conf)
+# Name = ${CONF_NAME%.conf}
 
 [Interface]
 PrivateKey = $PRIVKEY
@@ -265,22 +218,19 @@ Endpoint = $BEST_ENDPOINT
 AllowedIPs = 0.0.0.0/1, 128.0.0.0/1, ::/1, 8000::/1
 CONFIG
 
-echo "✅ Configuration generated successfully."
-echo
-
-echo "══════════════════════════════════════════════════"
-echo "          YOUR FINAL CONFIGURATION"
-echo "══════════════════════════════════════════════════"
-echo
-
-cat "$CONF_PATH"
+chmod 600 "$CONF_PATH"
 
 echo
-
 echo "══════════════════════════════════════════════════"
-echo "✅ Script completed successfully!"
-echo "📁 Config file saved to:"
-echo "   $CONF_PATH"
-echo "🌐 Best endpoint used: $BEST_ENDPOINT"
+echo "          CONFIGURATION GENERATED"
 echo "══════════════════════════════════════════════════"
-
+echo
+echo "File:"
+echo "$CONF_PATH"
+echo
+echo "Endpoint:"
+echo "$BEST_ENDPOINT"
+echo
+echo "PrivateKey is intentionally not printed."
+echo
+echo "══════════════════════════════════════════════════"
