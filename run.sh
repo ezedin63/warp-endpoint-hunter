@@ -11,4 +11,5 @@ if ! curl -fsSL "$URL" -o "$FILE"; then
 fi
 
 chmod +x "$FILE"
-exec bash "$FILE"
+
+exec bash "$FILE" </dev/tty
